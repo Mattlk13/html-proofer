@@ -3,12 +3,12 @@
 class OpenGraphElement < ::HTMLProofer::Element
   attr_reader :src
 
-  def initialize(obj, check)
-    super(obj, check)
+  def initialize(obj, check, logger)
+    super(obj, check, logger)
     # Fake up src from the content attribute
     instance_variable_set('@src', @content)
 
-    @src.insert 0, 'http:' if @src =~ %r{^//}
+    @src.insert 0, 'http:' if %r{^//}.match?(@src)
   end
 end
 
@@ -23,7 +23,7 @@ class OpenGraphCheck < ::HTMLProofer::Check
 
   def run
     @html.css('meta[property="og:url"], meta[property="og:image"]').each do |m|
-      @opengraph = OpenGraphElement.new(m, self)
+      @opengraph = OpenGraphElement.new(m, self, @logger)
 
       next if @opengraph.ignore?
 

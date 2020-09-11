@@ -31,6 +31,7 @@ module HTMLProofer
       end
 
       @failures = []
+      @before_request = []
     end
 
     def run
@@ -100,7 +101,7 @@ module HTMLProofer
       @src.each do |src|
         checks.each do |klass|
           @logger.log :debug, "Checking #{klass.to_s.downcase} on #{path} ..."
-          check = Object.const_get(klass).new(src, path, html, @options)
+          check = Object.const_get(klass).new(src, path, html, @logger, @options)
           check.run
           external_urls = check.external_urls
           external_urls = Hash[check.external_urls.map { |url, file| [swap(url, @options[:url_swap]), file] }] if @options[:url_swap]
@@ -117,6 +118,7 @@ module HTMLProofer
 
     def validate_urls
       url_validator = HTMLProofer::UrlValidator.new(@logger, @external_urls, @options)
+      url_validator.before_request = @before_request
       @failures.concat(url_validator.run)
       @external_urls = url_validator.external_urls
     end
@@ -147,6 +149,8 @@ module HTMLProofer
     def checks
       return @checks if defined?(@checks) && !@checks.nil?
 
+      return (@checks = ['LinkCheck']) if @type == :links
+
       @checks = HTMLProofer::Check.subchecks.map(&:name)
       @checks.delete('FaviconCheck') unless @options[:check_favicon]
       @checks.delete('HtmlCheck') unless @options[:check_html]
@@ -170,6 +174,22 @@ module HTMLProofer
       count = @failures.length
       failure_text = pluralize(count, 'failure', 'failures')
       raise @logger.colorize :fatal, "HTML-Proofer found #{failure_text}!"
+    end
+
+    # Set before_request callback.
+    #
+    # @example Set before_request.
+    #   request.before_request { |request| p "yay" }
+    #
+    # @param [ Block ] block The block to execute.
+    #
+    # @yield [ Typhoeus::Request ]
+    #
+    # @return [ Array<Block> ] All before_request blocks.
+    def before_request(&block)
+      @before_request ||= []
+      @before_request << block if block_given?
+      @before_request
     end
   end
 end
